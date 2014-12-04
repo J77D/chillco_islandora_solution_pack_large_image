@@ -38,6 +38,10 @@
   </dsTypeModel>
   <dsTypeModel ID="OBJ">
     <form MIME="image/tiff"/>
+    <form MIME="image/jpg"></form>
+    <form MIME="image/jpeg"></form>
+    <form MIME="image/png"></form>
+    <form MIME="image/gif"></form>
   </dsTypeModel>
   <dsTypeModel ID="TECHMD">
     <form MIME="text/xml"/>
