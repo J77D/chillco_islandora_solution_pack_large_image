@@ -1,33 +1,81 @@
 <?php
 
 /**
- * Creates the derivatives for this content model type
- *
- * @param AbstractObject $object
- *   The object to add derivatives to.
- * @param bool $force
- *   Whether or not we should force the derivatives to be created, in the case
- *   that they already exist on the given object.
- *
- * @return boolean
- *   TRUE if all derivatives were created successfully, FALSE otherwise.
+ * Creates large jpg derivative from IMAGE datastream.
  */
-function chillco_islandora_solution_pack_large_image_create_all_derivatives(AbstractObject $object, $force = TRUE) {
-  if (!isset($object['OBJ']) && !isset($object['IMAGE'])) {
-    drupal_set_message(t('Did not create image derivatives for %s. No tiff/image file was uploaded.', array('%s' => $object->id)), 'error');
-    return FALSE;
-  }
-  $base_name = str_replace(':', '-', $object->id);
-  $uploaded_file = chillco_islandora_solution_pack_large_image_get_uploaded_image_file($object, $base_name);
-  if ($uploaded_file) {
-    $large = chillco_islandora_solution_pack_large_image_create_jpg_derivative($object, $uploaded_file, $base_name, $force, 'LARGE', 'chillco_islandora_solution_pack_large_image_large');
-    $medium = chillco_islandora_solution_pack_large_image_create_jpg_derivative($object, $uploaded_file, $base_name, $force, 'MEDIUM', 'chillco_islandora_solution_pack_large_image_medium');
-    $tn = chillco_islandora_solution_pack_large_image_create_jpg_derivative($object, $uploaded_file, $base_name, $force, 'TN', 'chillco_islandora_solution_pack_large_image_tn');
-    return $large && $medium && $tn && file_unmanaged_delete($uploaded_file);
-  }
-  return FALSE;
+function chillco_islandora_solution_pack_large_image_create_large_derivative(AbstractObject $object, $force = FALSE) {
+  return chillco_islandora_solution_pack_large_image_create_jpg_derivative($object, $force, 'LARGE', 'chillco_islandora_solution_pack_large_image_large');
 }
 
+/**
+ * Creates medium jpg derivative from IMAGE datastream.
+ */
+function chillco_islandora_solution_pack_large_image_create_medium_derivative(AbstractObject $object, $force = FALSE) {
+  return chillco_islandora_solution_pack_large_image_create_jpg_derivative($object, $force, 'MEDIUM', 'chillco_islandora_solution_pack_large_image_medium');
+}
+
+/**
+ * Creates tn jpg derivative from IMAGE datastream.
+ */
+function chillco_islandora_solution_pack_large_image_create_tn_derivative(AbstractObject $object, $force = FALSE) {
+  return chillco_islandora_solution_pack_large_image_create_jpg_derivative($object, $force, 'TN', 'chillco_islandora_solution_pack_large_image_tn');
+}
+
+/**
+ * Creates a jpg datastream derivative of the IMAGE datastream using a Image
+ * Styles preset.
+ */
+function chillco_islandora_solution_pack_large_image_create_jpg_derivative(AbstractObject $object, $force, $dsid, $style_name) {
+  $to_return = array(
+    'success' => FALSE,
+    'messages' => array(),
+  );
+  $base_name = str_replace(':', '-', $object->id);
+  $uploaded_file = chillco_islandora_solution_pack_large_image_get_uploaded_image_file($object, $base_name);
+  if ($uploaded_file && ($force || !isset($object[$dsid]))) {
+    $filename = file_create_filename("{$base_name}.{$dsid}.jpg", 'temporary://');
+    $image_style = image_style_load($style_name);
+    if(image_style_create_derivative($image_style, $uploaded_file, $filename)) {
+      $file_path = drupal_realpath($filename);
+      if (chillco_islandora_solution_pack_large_image_add_datastream($object, $dsid, $file_path, file_get_mimetype($file_path), basename($file_path))) {
+        $to_return['success'] = TRUE;
+        $to_return['messages'][] = array(
+          'message' => t('Successfully created derivative for @dsid', array('@dsid' => $dsid)),
+          'type' => 'watchdog',
+          'severity' => WATCHDOG_INFO,
+        );
+      }
+      else {
+        $to_return['messages'][] = array(
+          'message' => t('Could not create derivative for @dsid: could not attach datastream to @id', array('@dsid' => $dsid, '@id' => $object->id)),
+          'type' => 'dsm',
+          'severity' => 'error',
+        );
+      }
+    }
+    else {
+      $to_return['messages'][] = array(
+        'message' => t('Could not create derivative for @dsid: derivative image style was not created', array('@dsid' => $dsid)),
+        'type' => 'dsm',
+        'severity' => 'error',
+      );
+    }
+    file_unmanaged_delete($filename);
+  }
+  else {
+    $to_return['messages'][] = array(
+      'message' => t('Could not create derivative for @dsid: uploaded file does not exist and/or (regeneration was not forced and datastream already exists)', array('@dsid' => $dsid)),
+      'type' => 'dsm',
+      'severity' => 'error',
+    );
+  }
+  file_unmanaged_delete($uploaded_file);
+  return $to_return;
+}
+
+/**
+ * Gets the IMAGE datastream associated with an object.
+ */
 function chillco_islandora_solution_pack_large_image_get_uploaded_image_file(AbstractObject $object, $base_name) {
   $convert = FALSE;
   if (isset($object['IMAGE'])) {
@@ -56,19 +104,9 @@ function chillco_islandora_solution_pack_large_image_get_uploaded_image_file(Abs
   return $filename;
 }
 
-function chillco_islandora_solution_pack_large_image_create_jpg_derivative(AbstractObject $object, $uploaded_file, $base_name, $force, $dsid, $style_name) {
-  if ($force || !isset($object[$dsid])) {
-    $filename = file_create_filename("{$base_name}.{$dsid}.jpg", 'temporary://');
-    $image_style = image_style_load($style_name);
-    if(image_style_create_derivative($image_style, $uploaded_file, $filename)) {
-      $file_path = drupal_realpath($filename);
-      chillco_islandora_solution_pack_large_image_add_datastream($object, $dsid, $file_path, file_get_mimetype($file_path), basename($file_path));
-    }
-    return file_unmanaged_delete($filename);
-  }
-  return TRUE;
-}
-
+/**
+ * Adds datastream to object.
+ */
 function chillco_islandora_solution_pack_large_image_add_datastream(AbstractObject $object, $dsid, $file, $mimetype, $label) {
   $ds = $object->constructDatastream($dsid, 'M');
   $ds->label = $label;

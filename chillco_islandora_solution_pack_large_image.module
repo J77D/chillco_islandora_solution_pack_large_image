@@ -275,32 +275,6 @@ function chillco_islandora_solution_pack_large_image_islandora_chillco_isp_large
 }
 
 /**
- * Implements hook_CMODEL_PID_DSID_islandora_datastream_ingested().
- */
-function chillco_islandora_solution_pack_large_image_islandora_chillco_isp_large_image_cmodel_OBJ_islandora_datastream_ingested(AbstractObject $object, AbstractDatastream $datastream) {
-  chillco_islandora_solution_pack_large_image_islandora_chillco_isp_large_image_cmodel_islandora_object_ingested($object);
-}
-
-/**
- * Implements hook_CMODEL_PID_DSID_islandora_datastream_ingested().
- */
-function chillco_islandora_solution_pack_large_image_islandora_chillco_isp_large_image_cmodel_IMAGE_islandora_datastream_ingested(AbstractObject $object, AbstractDatastream $datastream) {
-  chillco_islandora_solution_pack_large_image_islandora_chillco_isp_large_image_cmodel_islandora_object_ingested($object);
-}
-
-/**
- * Implements hook_CMODEL_PID_islandora_object_ingested().
- */
-function chillco_islandora_solution_pack_large_image_islandora_chillco_isp_large_image_cmodel_islandora_object_ingested(AbstractObject $object) {
-  static $object_id;
-  if ($object_id !== $object->id) {
-    $object_id = $object->id;
-    module_load_include('inc', 'chillco_islandora_solution_pack_large_image', 'includes/derivatives');
-    chillco_islandora_solution_pack_large_image_create_all_derivatives($object, FALSE);
-  }
-}
-
-/**
  * Implements hook_CMODEL_PID_islandora_ingest_steps().
  */
 function chillco_islandora_solution_pack_large_image_islandora_chillco_isp_large_image_cmodel_islandora_ingest_steps() {
@@ -313,6 +287,44 @@ function chillco_islandora_solution_pack_large_image_islandora_chillco_isp_large
       'file' => 'includes/image_upload.form.inc',
     ),
   );
+}
+
+/**
+ * Implements hook_CMODEL_PID_islandora_derivative().
+ */
+function chillco_islandora_solution_pack_large_image_islandora_chillco_isp_large_image_cmodel_islandora_derivative(AbstractObject $object) {
+  $module_path = drupal_get_path('module', 'chillco_islandora_solution_pack_large_image');
+  $derivatives = array();
+  $derivatives[] = array(
+    'source_dsid' => 'IMAGE',
+    'destination_dsid' => 'LARGE',
+    'weight' => 0,
+    'function' => array(
+      'chillco_islandora_solution_pack_large_image_create_large_derivative'
+    ),
+    'file' => "{$module_path}/includes/derivatives.inc",
+  );
+
+  $derivatives[] = array(
+    'source_dsid' => 'IMAGE',
+    'destination_dsid' => 'MEDIUM',
+    'weight' => 1,
+    'function' => array(
+      'chillco_islandora_solution_pack_large_image_create_medium_derivative'
+    ),
+    'file' => "{$module_path}/includes/derivatives.inc",
+  );
+
+  $derivatives[] = array(
+    'source_dsid' => 'IMAGE',
+    'destination_dsid' => 'TN',
+    'weight' => 2,
+    'function' => array(
+      'chillco_islandora_solution_pack_large_image_create_tn_derivative'
+    ),
+    'file' => "{$module_path}/includes/derivatives.inc",
+  );
+  return $derivatives;
 }
 
 /**
